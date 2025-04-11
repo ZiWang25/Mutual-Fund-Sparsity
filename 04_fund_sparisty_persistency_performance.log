@@ -1,0 +1,555 @@
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  C:\Users\thebi\OneDrive\Desktop\Jane Li RA\2024_04_12_fund_sparisty_persistency_performance.log
+  log type:  text
+ opened on:  12 Apr 2024, 12:36:56
+
+. use "C:\Users\thebi\OneDrive\Desktop\Jane Li RA\2024_04_12_fund_sparisty_ret.dta"
+
+. * Ensure quarter is recognized in datetime format if not already set
+. 
+. *Fix the naming issues in Stata
+. rename percent_benchmark_median_passive pct_median_bench
+
+. 
+. rename percent_benchmark_avg_passive pct_avg_bench
+
+. 
+. rename percent_benchmark_largest_passiv pct_largest_bench
+
+. 
+. 
+. * Step 1: Extract year and quarter number
+. gen year = real(substr(quarter, 1, 4))
+
+. gen qtr = real(substr(quarter, 6, 1))
+
+. 
+. * Step 2: Create a numeric quarterly date
+. gen quarter_numeric = yq(year, qtr)
+
+. 
+. * Step 3: Apply Stata's quarterly date format
+. format quarter_numeric %tq
+
+. 
+. * Now, you can set your panel data structure (assuming wficn is your panel ID variable)
+. xtset wficn quarter_numeric
+
+Panel variable: wficn (unbalanced)
+ Time variable: quarter_numeric, 1980q1 to 2020q3, but with gaps
+         Delta: 1 quarter
+
+. 
+. 
+. * Example list of your Sy_i,t variables
+. local vars "percent_within_3 percent_within_7 percent_within_11 percent_within_15 percent_within_19 percent_benchmark_0 percent_benchmark_3 percent_benchmark_7 percent
+> _benchmark_11 percent_benchmark_15 percent_benchmark_19 pct_median_bench pct_avg_bench pct_largest_bench"
+
+. 
+. * Prepare a matrix to store results
+. matrix persistency = J(14, 4, .)
+
+. 
+. * Initialize a counter
+. local i = 1
+
+. 
+. * Loop over your list of variables
+. foreach var in `vars' {
+  2.     * Generate lagged variable
+.     gen lag_`var' = L.`var'
+  3.     
+.     * Run fixed effects regression
+.     quietly xtreg `var' lag_`var', fe
+  4.     
+.     * Store results
+.     scalar beta = _b[lag_`var']
+  5.     scalar tstat = _b[lag_`var'] / _se[lag_`var']
+  6.     scalar pval = 2 * (1 - normal(abs(tstat)))
+  7.     scalar stderr = _se[lag_`var']
+  8.     * Update the matrix with the current position
+.     matrix persistency[`i',1] = beta
+  9.     matrix persistency[`i',3] = tstat
+ 10.     matrix persistency[`i',4] = pval
+ 11.         matrix persistency[`i',2] = stderr
+ 12.         *matrix rownames results[`i'] = "`var'"
+.     * Debugging: Display the current position and stored values
+.     di "Storing results for `var' at position `i': beta = " beta ", tstat = " tstat ", pval = " pval
+ 13.     
+.     * Increment the counter
+.     local ++i
+ 14. }
+(14,901 missing values generated)
+Storing results for percent_within_3 at position 1: beta = .56663684, tstat = 452.75442, pval = 0
+(21,122 missing values generated)
+Storing results for percent_within_7 at position 2: beta = .74786389, tstat = 811.54046, pval = 0
+(23,332 missing values generated)
+Storing results for percent_within_11 at position 3: beta = .79046298, tstat = 1000.5692, pval = 0
+(24,513 missing values generated)
+Storing results for percent_within_15 at position 4: beta = .80955209, tstat = 1124.7725, pval = 0
+(24,767 missing values generated)
+Storing results for percent_within_19 at position 5: beta = .81943384, tstat = 1213.6341, pval = 0
+(292,038 missing values generated)
+Storing results for percent_benchmark_0 at position 6: beta = .81786247, tstat = 611.62619, pval = 0
+(292,025 missing values generated)
+Storing results for percent_benchmark_3 at position 7: beta = .81598778, tstat = 614.51794, pval = 0
+(292,018 missing values generated)
+Storing results for percent_benchmark_7 at position 8: beta = .81575969, tstat = 630.45964, pval = 0
+(292,021 missing values generated)
+Storing results for percent_benchmark_11 at position 9: beta = .81085672, tstat = 632.3531, pval = 0
+(292,015 missing values generated)
+Storing results for percent_benchmark_15 at position 10: beta = .80394562, tstat = 630.03633, pval = 0
+(292,010 missing values generated)
+Storing results for percent_benchmark_19 at position 11: beta = .7999713, tstat = 628.42143, pval = 0
+(308,094 missing values generated)
+Storing results for pct_median_bench at position 12: beta = .82753704, tstat = 509.71536, pval = 0
+(308,231 missing values generated)
+Storing results for pct_avg_bench at position 13: beta = .84547473, tstat = 545.98715, pval = 0
+(308,133 missing values generated)
+Storing results for pct_largest_bench at position 14: beta = .86185498, tstat = 584.1921, pval = 0
+
+. 
+. 
+. * Output the results matrix to a .csv file
+. matrix rownames persistency = `vars'
+
+. matrix colnames persistency = beta stderr tstat pval 
+
+. matrix list persistency
+
+persistency[14,4]
+                   beta     stderr      tstat       pval
+percent_wi~3  .56663684  .00125153  452.75442          0
+percent_wi~7  .74786389  .00092154  811.54046          0
+percent_w~11  .79046298  .00079001  1000.5692          0
+percent_w~15  .80955209  .00071975  1124.7725          0
+percent_w~19  .81943384  .00067519  1213.6341          0
+percent_be~0  .81786247  .00133719  611.62619          0
+percent_be~3  .81598778  .00132785  614.51794          0
+percent_be~7  .81575969  .00129391  630.45964          0
+percent_b~11  .81085672  .00128228   632.3531          0
+percent_b~15  .80394562  .00127603  630.03633          0
+percent_b~19   .7999713  .00127299  628.42143          0
+pct_median~h  .82753704  .00162353  509.71536          0
+pct_avg_be~h  .84547473  .00154852  545.98715          0
+pct_larges~h  .86185498  .00147529   584.1921          0
+
+. 
+. 
+. 
+. 
+. 
+. * Fund Performance
+. 
+. * Now Run the RET on Sit and Time Effects
+. * Prepare a matrix to store results
+. local vars "percent_within_3 percent_within_7 percent_within_11 percent_within_15 percent_within_19 percent_benchmark_0 percent_benchmark_3 percent_benchmark_7 percent
+> _benchmark_11 percent_benchmark_15 percent_benchmark_19 pct_median_bench pct_avg_bench pct_largest_bench"
+
+. 
+. matrix mf_te = J(14, 4, .)
+
+. 
+. * Initialize a counter
+. local i = 1
+
+. 
+. * Loop over your list of variables
+. foreach var in `vars' {
+  2.     
+.     * Run fixed effects regression
+.     quietly xtreg fund_ret `var' i.(quarter_numeric)
+  3.     
+.     * Store results
+.     scalar beta = _b[`var']
+  4.     scalar tstat = _b[`var'] / _se[`var']
+  5.     scalar pval = 2 * (1 - normal(abs(tstat)))
+  6.     scalar stderr = _se[`var']
+  7.     * Update the matrix with the current position
+.     matrix mf_te[`i',1] = beta
+  8.     matrix mf_te[`i',3] = tstat
+  9.     matrix mf_te[`i',4] = pval
+ 10.         matrix mf_te[`i',2] = stderr
+ 11.         *matrix rownames results[`i'] = "`var'"
+.     * Debugging: Display the current position and stored values
+.     di "Storing results for `var' at position `i': beta = " beta ", tstat = " tstat ", pval = " pval
+ 12.     
+.     * Increment the counter
+.     local ++i
+ 13. }
+Storing results for percent_within_3 at position 1: beta = .00332871, tstat = 2.1469627, pval = .03179625
+Storing results for percent_within_7 at position 2: beta = .00064223, tstat = .49134192, pval = .62318463
+Storing results for percent_within_11 at position 3: beta = -.00032324, tstat = -.26262317, pval = .79284104
+Storing results for percent_within_15 at position 4: beta = -.00060947, tstat = -.51087413, pval = .60943919
+Storing results for percent_within_19 at position 5: beta = -.00131486, tstat = -1.1285073, pval = .25910572
+Storing results for percent_benchmark_0 at position 6: beta = .02173836, tstat = 1.0856592, pval = .27762979
+Storing results for percent_benchmark_3 at position 7: beta = .02803641, tstat = 1.2259648, pval = .2202119
+Storing results for percent_benchmark_7 at position 8: beta = .03178127, tstat = 1.2812546, pval = .20010427
+Storing results for percent_benchmark_11 at position 9: beta = .03653158, tstat = 1.4045399, pval = .16015813
+Storing results for percent_benchmark_15 at position 10: beta = .03903121, tstat = 1.4558613, pval = .14543097
+Storing results for percent_benchmark_19 at position 11: beta = .04036688, tstat = 1.4750937, pval = .14018735
+Storing results for pct_median_bench at position 12: beta = -.00063233, tstat = -.1646811, pval = .869195
+Storing results for pct_avg_bench at position 13: beta = -.0014726, tstat = -.37819554, pval = .70528534
+Storing results for pct_largest_bench at position 14: beta = -.00043776, tstat = -.11604595, pval = .90761613
+
+. 
+. 
+. * Output the results matrix to a .csv file
+. matrix rownames mf_te = `vars'
+
+. matrix colnames mf_te = beta stderr tstat pval
+
+. *RET on Sit and Time Effects 
+. matrix list mf_te
+
+mf_te[14,4]
+                    beta      stderr       tstat        pval
+percent_wi~3   .00332871   .00155043   2.1469627   .03179625
+percent_wi~7   .00064223   .00130709   .49134192   .62318463
+percent_w~11  -.00032324   .00123081  -.26262317   .79284104
+percent_w~15  -.00060947   .00119299  -.51087413   .60943919
+percent_w~19  -.00131486   .00116513  -1.1285073   .25910572
+percent_be~0   .02173836   .02002319   1.0856592   .27762979
+percent_be~3   .02803641   .02286885   1.2259648    .2202119
+percent_be~7   .03178127    .0248048   1.2812546   .20010427
+percent_b~11   .03653158   .02600964   1.4045399   .16015813
+percent_b~15   .03903121    .0268097   1.4558613   .14543097
+percent_b~19   .04036688   .02736563   1.4750937   .14018735
+pct_median~h  -.00063233   .00383971   -.1646811     .869195
+pct_avg_be~h   -.0014726   .00389376  -.37819554   .70528534
+pct_larges~h  -.00043776   .00377226  -.11604595   .90761613
+
+. 
+. 
+. 
+. 
+. *Now Run Ret on Sit and Fund Fixed effects and Time effects
+. local vars "percent_within_3 percent_within_7 percent_within_11 percent_within_15 percent_within_19 percent_benchmark_0 percent_benchmark_3 percent_benchmark_7 percent
+> _benchmark_11 percent_benchmark_15 percent_benchmark_19 pct_median_bench pct_avg_bench pct_largest_bench"
+
+. 
+. matrix mf_te_fe = J(14, 4, .)
+
+. 
+. * Initialize a counter
+. local i = 1
+
+. 
+. * Loop over your list of variables
+. foreach var in `vars' {
+  2.     
+.     * Run fixed effects regression
+.     quietly xtreg fund_ret `var' i.(quarter_numeric),fe
+  3.     
+.     * Store results
+.     scalar beta = _b[`var']
+  4.     scalar tstat = _b[`var'] / _se[`var']
+  5.     scalar pval = 2 * (1 - normal(abs(tstat)))
+  6.     scalar stderr = _se[`var']
+  7.     * Update the matrix with the current position
+.     matrix mf_te_fe[`i',1] = beta
+  8.     matrix mf_te_fe[`i',3] = tstat
+  9.     matrix mf_te_fe[`i',4] = pval
+ 10.         matrix mf_te_fe[`i',2] = stderr
+ 11.         *matrix rownames results[`i'] = "`var'"
+.     * Debugging: Display the current position and stored values
+.     di "Storing results for `var' at position `i': beta = " beta ", tstat = " tstat ", pval = " pval
+ 12.     
+.     * Increment the counter
+.     local ++i
+ 13. }
+Storing results for percent_within_3 at position 1: beta = .00560119, tstat = 2.8124663, pval = .00491632
+Storing results for percent_within_7 at position 2: beta = .00275671, tstat = 1.4918246, pval = .13574512
+Storing results for percent_within_11 at position 3: beta = .00248956, tstat = 1.381403, pval = .16715509
+Storing results for percent_within_15 at position 4: beta = .00254407, tstat = 1.4217677, pval = .15509369
+Storing results for percent_within_19 at position 5: beta = .00174875, tstat = .97979479, pval = .32718743
+Storing results for percent_benchmark_0 at position 6: beta = .0309254, tstat = .65693128, pval = .51122511
+Storing results for percent_benchmark_3 at position 7: beta = .04185167, tstat = .77452571, pval = .43861997
+Storing results for percent_benchmark_7 at position 8: beta = .04455869, tstat = .75414278, pval = .45076349
+Storing results for percent_benchmark_11 at position 9: beta = .05075256, tstat = .81844883, pval = .41310095
+Storing results for percent_benchmark_15 at position 10: beta = .05481481, tstat = .85476173, pval = .39268307
+Storing results for percent_benchmark_19 at position 11: beta = .05419949, tstat = .82839099, pval = .40744911
+Storing results for pct_median_bench at position 12: beta = -.00837923, tstat = -.78033666, pval = .43519274
+Storing results for pct_avg_bench at position 13: beta = -.01021497, tstat = -.95325934, pval = .34045869
+Storing results for pct_largest_bench at position 14: beta = -.00749632, tstat = -.76404936, pval = .44483783
+
+. 
+. 
+. * Output the results matrix to a .csv file
+. matrix rownames mf_te_fe = `vars'
+
+. matrix colnames mf_te_fe = beta stderr tstat pval 
+
+. *Ret on Sit and Fund Fixed effects and Time effects
+. matrix list mf_te_fe
+
+mf_te_fe[14,4]
+                    beta      stderr       tstat        pval
+percent_wi~3   .00560119   .00199156   2.8124663   .00491632
+percent_wi~7   .00275671   .00184788   1.4918246   .13574512
+percent_w~11   .00248956   .00180219    1.381403   .16715509
+percent_w~15   .00254407   .00178937   1.4217677   .15509369
+percent_w~19   .00174875   .00178481   .97979479   .32718743
+percent_be~0    .0309254   .04707555   .65693128   .51122511
+percent_be~3   .04185167   .05403522   .77452571   .43861997
+percent_be~7   .04455869   .05908522   .75414278   .45076349
+percent_b~11   .05075256   .06201067   .81844883   .41310095
+percent_b~15   .05481481   .06412876   .85476173   .39268307
+percent_b~19   .05419949   .06542742   .82839099   .40744911
+pct_median~h  -.00837923   .01073797  -.78033666   .43519274
+pct_avg_be~h  -.01021497   .01071584  -.95325934   .34045869
+pct_larges~h  -.00749632    .0098113  -.76404936   .44483783
+
+. 
+. 
+. 
+. 
+. 
+. 
+. 
+. *Now Run Ret on Sit and Mkt and Sit*Mkt
+. local vars "percent_within_3 percent_within_7 percent_within_11 percent_within_15 percent_within_19 percent_benchmark_0 percent_benchmark_3 percent_benchmark_7 percent
+> _benchmark_11 percent_benchmark_15 percent_benchmark_19 pct_median_bench pct_avg_bench pct_largest_bench"
+
+. 
+. matrix mf_mkt = J(14, 8, .)
+
+. 
+. * Initialize a counter
+. local i = 1
+
+. 
+. * Loop over your list of variables
+. foreach var in `vars' {
+  2.     gen `var'_mkt = `var'*Mkt_RF
+  3.     * Run fixed effects regression
+.     quietly xtreg fund_ret `var' Mkt_RF `var'_mkt
+  4.     
+.     * Store results for the original variable
+.     scalar beta_var = _b[`var']
+  5.     scalar stderr_var = _se[`var']
+  6.     scalar tstat_var = beta_var / stderr_var
+  7.     scalar pval_var = 2 * (1 - normal(abs(tstat_var)))
+  8.     
+.     * Store results for the interaction term
+.     scalar beta_mkt = _b[`var'_mkt]
+  9.     scalar stderr_mkt = _se[`var'_mkt]
+ 10.     scalar tstat_mkt = beta_mkt / stderr_mkt
+ 11.     scalar pval_mkt = 2 * (1 - normal(abs(tstat_mkt)))
+ 12.     * Update the matrix with the current position
+.     matrix mf_mkt[`i', 1] = beta_var
+ 13.     matrix mf_mkt[`i', 2] = stderr_var
+ 14.     matrix mf_mkt[`i', 3] = tstat_var
+ 15.     matrix mf_mkt[`i', 4] = pval_var
+ 16.     matrix mf_mkt[`i', 5] = beta_mkt
+ 17.     matrix mf_mkt[`i', 6] = stderr_mkt
+ 18.     matrix mf_mkt[`i', 7] = tstat_mkt
+ 19.     matrix mf_mkt[`i', 8] = pval_mkt
+ 20.         *matrix rownames results[`i'] = "`var'"
+.     * Debugging: Display the current position and stored values
+.     *di "Storing results for `var' at position `i': beta = " beta ", tstat = " tstat ", pval = " pval
+.     
+.     * Increment the counter
+.     local ++i
+ 21. }
+(1,065 missing values generated)
+(7,732 missing values generated)
+(10,085 missing values generated)
+(11,329 missing values generated)
+(11,565 missing values generated)
+(287,453 missing values generated)
+(287,446 missing values generated)
+(287,445 missing values generated)
+(287,449 missing values generated)
+(287,443 missing values generated)
+(287,437 missing values generated)
+(303,963 missing values generated)
+(304,100 missing values generated)
+(304,006 missing values generated)
+
+. 
+. 
+. * Output the results matrix to a .csv file
+. matrix rownames mf_mkt = `vars'
+
+. matrix colnames mf_mkt = beta_var stderr_var tstat_var pval_var beta_mkt stderr_mkt tstat_mkt pval_mkt
+
+. *Ret on Sit and Mkt and Sit*Mkt
+. matrix list mf_mkt
+
+mf_mkt[14,8]
+                beta_var  stderr_var   tstat_var    pval_var    beta_mkt  stderr_mkt   tstat_mkt    pval_mkt
+percent_wi~3  -.00118603   .00155929  -.76062205   .44688285  -.00172192   .00017238  -9.9890526           0
+percent_wi~7  -.00373635   .00131542  -2.8404272   .00450532  -.00101897   .00014713  -6.9257979   4.335e-12
+percent_w~11  -.00382354   .00123945  -3.0848562   .00203651  -.00076611   .00013964  -5.4864162   4.102e-08
+percent_w~15  -.00336983   .00120029  -2.8075145   .00499254  -.00062707   .00013517  -4.6392922   3.496e-06
+percent_w~19   -.0032343   .00117226  -2.7590254    .0057974  -.00054593   .00013204   -4.134514   .00003557
+percent_be~0   .00028283   .02010092   .01407031   .98877389   .00459962   .00219955   2.0911653   .03651325
+percent_be~3   .00181296   .02292004   .07909931   .93695364   .00520065     .002507   2.0744506   .03803748
+percent_be~7   .00680954   .02486496   .27386097   .78419146   .00548272   .00271613   2.0185758   .04353133
+percent_b~11   .01407414   .02601139   .54107593   .58845525   .00549681   .00283194   1.9410042   .05225777
+percent_b~15   .01844729   .02675304      .68954   .49048351   .00550192   .00290433   1.8943859   .05817381
+percent_b~19   .02233535   .02727358   .81893736   .41282215   .00541681   .00295824   1.8310917   .06708686
+pct_median~h   -.0023582    .0038945  -.60552137   .54483263   .00027393   .00042334   .64707483   .51758351
+pct_avg_be~h  -.00210215   .00393922  -.53364735   .59358554   .00006167   .00042801   .14407772    .8854391
+pct_larges~h  -.00265564   .00384697  -.69031843   .48999396   .00017094   .00043698   .39119516   .69565299
+
+. 
+. 
+. 
+. 
+. 
+. 
+. 
+. 
+. 
+. 
+. *Now Run RET on Sit and FF3 and FF3*SIT
+. local vars "percent_within_3 percent_within_7 percent_within_11 percent_within_15 percent_within_19 percent_benchmark_0 percent_benchmark_3 percent_benchmark_7 percent
+> _benchmark_11 percent_benchmark_15 percent_benchmark_19 pct_median_bench pct_avg_bench pct_largest_bench"
+
+. 
+. matrix mf_ff = J(14, 16, .)
+
+. 
+. * Initialize a counter
+. local i = 1
+
+. 
+. * Loop over your list of variables
+. foreach var in `vars' {
+  2.         gen `var'_smb = `var'*SMB
+  3.         gen `var'_hml = `var'*HML
+  4.     * Run fixed effects regression
+.     quietly xtreg fund_ret `var' Mkt_RF `var'_mkt SMB `var'_smb HML `var'_hml  
+  5.     
+.     * Store results for the original variable
+.     scalar beta_var = _b[`var']
+  6.     scalar stderr_var = _se[`var']
+  7.     scalar tstat_var = beta_var / stderr_var
+  8.     scalar pval_var = 2 * (1 - normal(abs(tstat_var)))
+  9. 
+.     scalar beta_mkt = _b[`var'_mkt]
+ 10.     scalar stderr_mkt = _se[`var'_mkt]
+ 11.     scalar tstat_mkt = beta_mkt / stderr_mkt
+ 12.     scalar pval_mkt = 2 * (1 - normal(abs(tstat_mkt)))
+ 13. 
+.     scalar beta_smb = _b[`var'_smb]
+ 14.     scalar stderr_smb = _se[`var'_smb]
+ 15.     scalar tstat_smb = beta_smb / stderr_smb
+ 16.     scalar pval_smb = 2 * (1 - normal(abs(tstat_smb)))
+ 17. 
+.     scalar beta_hml = _b[`var'_hml]
+ 18.     scalar stderr_hml = _se[`var'_hml]
+ 19.     scalar tstat_hml = beta_hml / stderr_hml
+ 20.     scalar pval_hml = 2 * (1 - normal(abs(tstat_hml)))
+ 21.     * Update the matrix with the current position
+.     * Update the matrix with the current position
+.     matrix mf_ff[`i', 1] = beta_var
+ 22.     matrix mf_ff[`i', 2] = stderr_var
+ 23.     matrix mf_ff[`i', 3] = tstat_var
+ 24.     matrix mf_ff[`i', 4] = pval_var
+ 25.     matrix mf_ff[`i', 5] = beta_mkt
+ 26.     matrix mf_ff[`i', 6] = stderr_mkt
+ 27.     matrix mf_ff[`i', 7] = tstat_mkt
+ 28.     matrix mf_ff[`i', 8] = pval_mkt
+ 29.     matrix mf_ff[`i', 9] = beta_smb
+ 30.     matrix mf_ff[`i', 10] = stderr_smb
+ 31.     matrix mf_ff[`i', 11] = tstat_smb
+ 32.     matrix mf_ff[`i', 12] = pval_smb
+ 33.     matrix mf_ff[`i', 13] = beta_hml
+ 34.     matrix mf_ff[`i', 14] = stderr_hml
+ 35.     matrix mf_ff[`i', 15] = tstat_hml
+ 36.     matrix mf_ff[`i', 16] = pval_hml
+ 37.         *matrix rownames results[`i'] = "`var'"
+.     * Debugging: Display the current position and stored values
+.     *di "Storing results for `var' at position `i': beta = " beta ", tstat = " tstat ", pval = " pval
+.     
+.     * Increment the counter
+.     local ++i
+ 38. }
+(1,065 missing values generated)
+(1,065 missing values generated)
+(7,732 missing values generated)
+(7,732 missing values generated)
+(10,085 missing values generated)
+(10,085 missing values generated)
+(11,329 missing values generated)
+(11,329 missing values generated)
+(11,565 missing values generated)
+(11,565 missing values generated)
+(287,453 missing values generated)
+(287,453 missing values generated)
+(287,446 missing values generated)
+(287,446 missing values generated)
+(287,445 missing values generated)
+(287,445 missing values generated)
+(287,449 missing values generated)
+(287,449 missing values generated)
+(287,443 missing values generated)
+(287,443 missing values generated)
+(287,437 missing values generated)
+(287,437 missing values generated)
+(303,963 missing values generated)
+(303,963 missing values generated)
+(304,100 missing values generated)
+(304,100 missing values generated)
+(304,006 missing values generated)
+(304,006 missing values generated)
+
+. 
+. 
+. * Output the results matrix to a .csv file
+. * Assign variable names as row names to the matrix
+. matrix rownames mf_ff = `vars'
+
+. 
+. * Assign column names for the expanded results
+. matrix colnames mf_ff = beta_var stderr_var tstat_var pval_var beta_mkt stderr_mkt tstat_mkt pval_mkt beta_smb stderr_smb tstat_smb pval_smb beta_hml stderr_hml tstat_
+> hml pval_hml
+
+. 
+. *RET on Sit and FF3 and FF3*SIT
+. matrix list mf_ff
+
+mf_ff[14,16]
+                beta_var  stderr_var   tstat_var    pval_var    beta_mkt  stderr_mkt   tstat_mkt    pval_mkt    beta_smb  stderr_smb   tstat_smb    pval_smb    beta_hml
+percent_wi~3   .00012088   .00155886   .07754661   .93818871  -.00113423   .00019064  -5.9494402   2.691e-09  -.00167647   .00036446  -4.5998459   4.228e-06   .00349591
+percent_wi~7  -.00250254   .00131562  -1.9021722   .05714864  -.00055814   .00016246  -3.4356506   .00059113  -.00141868   .00030598  -4.6365238   3.543e-06   .00247633
+percent_w~11  -.00288095   .00123953  -2.3242161   .02011391  -.00034151   .00015352  -2.2245446   .02611182  -.00114451   .00028687  -3.9896253   .00006618    .0021159
+percent_w~15  -.00269549   .00120036  -2.2455585    .0247323  -.00021956   .00014852  -1.4783725   .13930809  -.00102917   .00027837  -3.6970739    .0002181   .00190045
+percent_w~19  -.00270823   .00117219  -2.3104092   .02086551   -.0001857   .00014489  -1.2816832   .19995379  -.00079199   .00027127  -2.9196067   .00350473   .00176973
+percent_be~0   .00232596   .02023846   .11492792   .90850225   .00414788   .00241929    1.714503   .08643639   .00167793   .00472342    .3552375   .72241167  -.00219805
+percent_be~3   .00559604    .0231075   .24217413   .80864524   .00450867   .00273956   1.6457654   .09981206   .00282883    .0053618   .52758889   .59778471  -.00187017
+percent_be~7   .01159961   .02505706   .46292776   .64341615   .00465892   .00297643   1.5652713   .11751932   .00357916   .00584498   .61234786   .54030763  -.00050207
+percent_b~11   .01845217   .02617998   .70482011   .48092219   .00457136   .00309567   1.4766952   .13975735   .00443177   .00604751   .73282498   .46366518   .00014293
+percent_b~15   .02200496   .02690218   .81796209   .41337883    .0046509   .00316833   1.4679376   .14212117   .00439246   .00616149   .71288819   .47591495     .000765
+percent_b~19   .02515883    .0273999   .91820888   .35850952   .00455998   .00322337   1.4146638   .15716709   .00467103   .00623464   .74920632   .45373286   .00117816
+pct_median~h  -.00270999   .00390324  -.69429228   .48749893   .00050533   .00046958   1.0761129   .28187675  -.00086875   .00101812  -.85328782   .39349971  -.00009353
+pct_avg_be~h  -.00252015   .00394548  -.63874382    .5229896   .00033781   .00047639   .70909201   .47826738   -.0010923   .00101415  -1.0770646    .2814514  -.00014807
+pct_larges~h  -.00297846   .00385983  -.77165593   .44031824   .00039495   .00049304   .80104745   .42310418  -.00086276   .00101444  -.85048638   .39505473  -.00024021
+
+              stderr_hml   tstat_hml    pval_hml
+percent_wi~3   .00023499   14.876559           0
+percent_wi~7   .00019992    12.38658           0
+percent_w~11   .00018812   11.247548           0
+percent_w~15   .00018155   10.468006           0
+percent_w~19   .00017682    10.00859           0
+percent_be~0   .00297667  -.73842621   .46025549
+percent_be~3   .00336239  -.55620444   .57807111
+percent_be~7   .00363306  -.13819581   .89008566
+percent_b~11    .0037735   .03787818   .96978481
+percent_b~15     .003858   .19828881   .84281911
+percent_b~19   .00393274   .29957695   .76449987
+pct_median~h   .00059602  -.15693155    .8752988
+pct_avg_be~h   .00059712  -.24797681   .80415235
+pct_larges~h   .00062416  -.38485466    .7003451
+
+. 
+. log close
+      name:  <unnamed>
+       log:  C:\Users\thebi\OneDrive\Desktop\Jane Li RA\2024_04_12_fund_sparisty_persistency_performance.log
+  log type:  text
+ closed on:  12 Apr 2024, 12:43:33
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
